@@ -1,11 +1,10 @@
 ---
 title: Advent of the Reaper Entry Two
-summary: Map Movement
+summary: Tactics RPG map movement, which turned out to be a little trickier than expected
 tags: []
 draft: false
 layout: PostSimple
 date: '2022-06-09'
-canonicalUrl: advent-2
 ---
 ## How Did We Get Here?
 
@@ -130,7 +129,7 @@ Once we mark up the cells internally with their move distances, it's easy to det
 3. Enqueue the adjacent cell with the smallest move distance (meaning we're getting closer to the current position)
 4. Move current cell to this cell and repeat
 
-```csharp   
+```csharp
 public List<MoveCell> MakePath(MoveCell destination, List<MoveCell> moveCells)
 {
     var walkPosition = destination;

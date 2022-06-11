@@ -1,0 +1,30 @@
+---
+title: Alloy
+summary: My current fulltime gig
+tags: []
+draft: false
+layout: PostSimple
+date: '2022-05-01'
+---
+
+# [Alloy](https://www.myalloy.com/)
+
+I joined Alloy in February as the Engineering Director of their nascient team. Alloy had recently launched with a backend healthcare API partner called [Capable Health](https://capablehealth.com/).
+
+## Engineering Team
+
+I've been building the team out - from one developer + one contractor to the current configuration of 3 internal developers, one internal QA manager, and myself. Most importantly, I strive for a high trust and low ego culture - learning and being able to depend on your teammates is paramount.
+
+## Codebase
+
+The front end is a nice mix of next.js + Contentful for the marketing site, and a plain old react app for the authenticated side. There is also a shared npm library for code that needs to be shared across sites.
+
+The back end is an express + typescript app. There is plenty of cleanup needed, the code is very scriptey, not like my prior experience using C# or JVM language backends. I plan on introducing the usual Controller/Service/DAO paradigm even though it doesn't seem to be as popular in the Node world. It seems like a decent abstraction that makes test writing easy, and I can't think of a better way really. DDD exists but their rich domain model, which is probably fine if you go all in on it, feels weird to somebody not versed in DDD.
+
+## Hosting
+
+The backend is running on a PaaS called [Render](https://render.com). Render seems like the perfect successor to Heroku - cheaper, easy to set up and roll with, and great Postgres support. One click to create a read replica was especially impressive. I've got Metabase set up on top of the Postgres database, still plenty of data to migrate over from Mongo but really happy with the Postgres schema so far.
+
+The frontend is hosted on Netlify, which is also cheap and easy. Over time we may move everything onto Render so that we can take advantage of their end to end preview environments for PRs but that would be quite pricey and unnecessary right now so it's not a big priority.
+
+We use Logrocket and Papertrail for log aggregation, alerting, and end user troubleshooting. It's not too expensive for a small team and buys you quite a lot. The biggest challenge is Logrocket - they charge per session and for a site with a low conversion rate you end up spending a lot of money for the people that end up dropping out. I've considered sampling in order to capture only a subset of the sessions, but when somebody reaches out to support it's critical to find their session to see what went wrong.
