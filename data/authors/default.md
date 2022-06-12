@@ -1,6 +1,6 @@
 ---
 name: Lucas Gray
-avatar: /static/images/avatar.png
+avatar: /static/images/lucasgray.png
 occupation: Engineering Director
 company: Alloy Women's Health
 email: lucas.e.gray at gmail dot com
