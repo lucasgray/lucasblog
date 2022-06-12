@@ -7,7 +7,7 @@ email: lucas.e.gray at gmail dot com
 linkedin: https://www.linkedin.com/in/lucas-gray-6169403/
 github: https://github.com/lucasgray
 ---
-I'm a dude that likes building software. By day, I enjoy helping others bring the software of their dreams to life. I relish solid execution and efficiency. I relentlessly chase process optimization.  By night, I poke around creating games with Unity, Phaser.js, and React-Native.
+I'm a dude that likes building software. By day, I enjoy helping others bring the software of their dreams to life. I relentlessly chase process optimization.  By night, I poke around creating games with Unity, Phaser.js, and react-native.
 
 I lead engineering teams. I strive to create a team culture of high trust and low ego. I believe that the pursuit of the **craftsmanship** of building software is key to producing the best work of one's career.
 
