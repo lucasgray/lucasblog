@@ -10,12 +10,9 @@ const siteMetadata = {
   siteLogo: '/static/images/lucasgray.png',
   image: '/static/images/lucagray.png',
   socialBanner: '/static/images/twitter-card.png',
-  email: 'lucas dot e dot gray @ gmail dot com',
-  github: 'https://github.com',
-  twitter: 'https://twitter.com/Twitter',
-  facebook: 'https://facebook.com',
-  youtube: 'https://youtube.com',
-  linkedin: 'https://www.linkedin.com',
+  github: 'https://github.com/lucasgray',
+  linkedin: 'https://www.linkedin.com/in/lucas-gray-6169403/',
+  email: 'lucas.e.gray@gmail.com',
   locale: 'en-US',
   analytics: {
     // If you want to use an analytics provider you have to add it to the
