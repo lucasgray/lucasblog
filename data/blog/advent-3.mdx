@@ -29,9 +29,7 @@ I decided to introduce the idea of `State`. There is an overall `StateMachine` t
 
 Every `State` is also a `MonoBehavior` on a `GameObject` - essentially a bunch of singletons with global scope, but I can handle the global state drawback by encapsulation and access control levers.
 
-Let's look at `StateMachine` first. On `StateMachine` for example we have the method
-
-`StateMachine` is in charge of keeping a handle on all the game states, and providing utilities to determine which is the active state, etc. It has every `State` as a field. Here is an example utility method -
+Let's look at `StateMachine` first.  `StateMachine` is in charge of keeping a reference all the game states, and providing utilities to determine which is the active state, etc. Here is an example utility method -
 
 ```csharp
 public State PriorityActiveState()
