@@ -3,7 +3,7 @@ const siteMetadata = {
   author: 'Lucas Gray',
   headerTitle: 'Lucas Makes Games',
   description:
-    'A journal about my forays into game development. Occasionally punctuated by work projects',
+    'A journal about my forays into game development. Occasionally punctuated by work projects.',
   language: 'en-us',
   theme: 'light', // system, dark or light
   siteUrl: 'https://lucasegray.com',
