@@ -8,22 +8,22 @@ date: '2022-06-09'
 ---
 ## How Did We Get Here?
 
-I've been busy on Advent! Working on it off and on when I have spare nights and weekends, outside of the Eddie Bowles walking tour. I've been trying not to outpace the artwork - still plenty to do, but I'm happy with my progress and the codebase so far. I'll focus on map movement for this post.
+I've been busy on Advent! Sneaking in time for it on nights and weekends, when I'm not polishing the Eddie Bowles walking tour. I've been trying not to outpace the artwork. One thing is for sure, making games is a **LOT** of work! Even taking into account how much I know about how hard it is to estimate software, I'm still surprised sometimes by the sheer hours required. Anyway, onto the fun stuff -
 
 ## Map Movement
 
-Here's a screenshot of where things stand -
+Here's a screenshot of where things stand. This the beginning of the first map, during the player's turn.
 
 ![cursor and arrow](/static/images/advent/cursor-and-arrow.png)
 
-When the player's turn starts, they can choose a character to move. Next we need to render the character's move distance. We do this by taking into consideration their movement range and simulating movement to as many cells as allowed. We basically run Djikstra's algorithm (I think? It's been a long time since my undergrad days...) to determine this distance.
+When the turn starts, they can choose a character to move. Next we need to render the character's move distance. We do this by taking into consideration their movement range and simulating movement to as many cells as allowed. We run [Djikstra's algorithm](https://www.freecodecamp.org/news/dijkstras-shortest-path-algorithm-visual-introduction/) to determine this distance.
 
 There are two challenges -
 
 1. A character should be able to pass through (but not stop at!) a cell where there is currently another friendly character.
 2. A character cannot pass through or stop at walls (or other unpassable terrain).
 
-First things first, we kick off by starting at a given `Cell` (a field on the `MonoBehavior` here).  We enqueue it with a 0 distance, check N/S/E/W, enqueueing if necessary, then keep going through our queue till it's exhausted. In hindsight this could have been recursive but maybe the queue is more gentle on memory. Yeah. That's why I did it. Totally.
+We kick things off by starting at a given `Cell` (a field on the `MonoBehavior` script in the following snippet).  We enqueue it with a 0 distance, check N/S/E/W, enqueueing those cells if necessary.  Then we continue through the queue until it's exhausted. In hindsight this could have been recursive but maybe the queue is more gentle on memory. Yeah. That's why I did it. Totally.
 
 ```csharp
 public List<MoveCell> PathingFor(HashSet<Cell> movementBlockers,
@@ -101,7 +101,7 @@ private void MaybeEnqueue(MoveCell cell, Queue<MoveCell> toCheck, List<MoveCell>
 }
 ```
 
-Finally here's the implementation of `CanMoveThrough`. Certainly not going to break land/speed records but I think the tradeoff for readability is worth it.
+Finally, here is the implementation of `CanMoveThrough`. Certainly not going to break land/speed records but I think the tradeoff for readability is worth it. First we check if the only thing we would do is land directly on that cell, which means we should treat it as an invalid move (don't want to move into an ally's space!). Then we check if any of the subsequent n/s/e/w (minus the cell we came from) is a valid move.
 
 ```csharp
 private bool CanMoveThrough(MoveCell cell, HashSet<Cell> blockers, List<MoveCell> candidateCells)
@@ -118,7 +118,7 @@ private bool CanMoveThrough(MoveCell cell, HashSet<Cell> blockers, List<MoveCell
     var passableTiles = new List<Cell> {east, west, north, south}.Except(blockers).ToList();
     var cameFrom = candidateCells.Find(c => c.Distance == cell.Distance - 1);
 
-    return passableTiles.Except(new List<Cell> {cameFrom.Position}).ToList().Count > 0;
+    return passableTiles.Except(new List<Cell> {cameFrom.Position}).Any();
 }
 ```
 
@@ -178,11 +178,11 @@ That's it! The meat and potatoes of pathfinding for a character.
 
 ## Interlude: Terrain Type
 
-I've hooked up the idea of terrain types - forest should take more moves to pass through, a path should be easy to travel on, that sort of thing. It's surfaced into the game state code but not currently included in the algorithm. What I'll need to do is dynamically alter the amount of moves left based on the current cell's terrain type.
+I've hooked up the idea of terrain types - a forest tile should take more moves to pass through, a path should be easy to travel on, that sort of thing. It's surfaced into the game state code but not currently included in the algorithm. What I'll need to do is dynamically alter the amount of moves left based on the current cell's terrain type.
 
 ## Finale: AI
 
 We can use much of this code to determine how the enemy moves, too!
 
-Right now, the enemies are awfully simplistic. If they are within 3x the movement range of an attackable character, they move towards the closest character, otherwise, they wait in their current cell. This is somewhat like the original Fire Emblem but there are a few more features to implement.
+Right now, the enemies are awfully simplistic. If they are within 3x the movement range of an attackable character, they move towards the closest character, otherwise, they wait in their current cell. This is somewhat like the original Fire Emblem but there are a several more features to implement. We could get very crafty here!
 

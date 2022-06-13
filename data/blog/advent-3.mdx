@@ -21,13 +21,17 @@ Think about what the tactical RPG needs to do.
 
 That's for the player's turn! If it's the AIs turn, we walk through a subset of those items on a loop before returning input control back to the player. Also, we need to allow a player to roll back to a previous step (cancel selection).
 
-I did some searching and arrived at a solution similar to a few I've seen, hoping to strike the balance between hacky and overly abstract.
+I did some research and arrived at a solution similar to a few I've seen, hoping to strike the balance between hacky and overly abstract.
 
 ![state file hierarchy](/static/images/advent/state-file-hierarchy.png)
 
 I decided to introduce the idea of `State`. There is an overall `StateMachine` that keeps track of which states are active and which are overlaid by what (via a `Priority` field).
 
-On `StateMachine` for example we have the method
+Every `State` is also a `MonoBehavior` on a `GameObject` - essentially a bunch of singletons with global scope, but I can handle the global state drawback by encapsulation and access control levers.
+
+Let's look at `StateMachine` first. On `StateMachine` for example we have the method
+
+`StateMachine` is in charge of keeping a handle on all the game states, and providing utilities to determine which is the active state, etc. It has every `State` as a field. Here is an example utility method -
 
 ```csharp
 public State PriorityActiveState()
@@ -36,7 +40,7 @@ public State PriorityActiveState()
 }
 ```
 
-Which is used often to select the active state (for example, other decoupled UI components may hide themselves if the active state is the battle vignette).
+This is used to select the active state (for example, other decoupled UI components may hide themselves if the active state is the battle vignette).
 
 `GameState` holds the most important state for the battle map - the Set of board pieces, the map tile information, who's turn it is and how many turns has elapsed, that sort of thing. It is in charge of keeping track of turns. It also holds an instance to the `VisualNovelEngine` which is a good topic for another post :)
 
@@ -94,9 +98,9 @@ namespace States
 
 The generic `T` exists so that when a `State` is `Activated`, any typed properties can be passed in to be used for the rest of the lifecycle of the `State`. Sure it could be more tightly coupled to `GameState` for example but this lets them exist more independently.
 
-The big idea here - See the `Handle*` methods. This allows a state - critically - to be in charge of capturing user input. The priority active state should be the one to capture and interpret input. For now, we're just focused on keyboard and mouse, but later on this can be used to implement left/right/up/down with a controller or phone (buttons on display).
+The big idea here - See the `Handle*` methods. This allows a state - critically - to be in charge of capturing user input. The priority active state should be the one to capture and interpret input. For now, we're just focused on keyboard and mouse, but later on this can be used to implement left/right/up/down with a controller or phone (for a phone, I'd render buttons on the phone display).
 
-As a simple example, here's how the Options menu was implemented (tied to pressing escape) -
+As a very simple example, here's how the Options menu was implemented. When the player presses escape, we set the escape menu state active and overlay a slight sneezeguard and the options menu UI.
 
 ![options menu](/static/images/advent/options-menu.png)
 
@@ -105,7 +109,7 @@ namespace States
 {
     public class OptionsMenu : MonoBehaviour, State
     {
-        public int Priority => 100;
+        public int Priority => 100;  // should be the prio over everything!
         public bool Active { get; set; }
         public List<State> IsOverlaidBy { get; set; }
 
@@ -116,6 +120,7 @@ namespace States
         public void HandlePrimaryAction()
         {
             // do nothing
+            // see note at the end - UI buttons handle their own onClick!
         }
 
         public void ShowMenu()
@@ -143,7 +148,7 @@ namespace States
 }
 ```
 
-And one more simple one - the `State` that pops up the battle vignette! When the vignette runs, we don't let the player interact until it's over, so handling input is really easy :) This time however, we actually use the generic.
+One more simple example - the `State` that handles playing the battle vignette! When the vignette runs, we don't let the player interact until it's over, so handling input is really easy :) This time however, we actually use the generic.
 
 ![battle vignette](/static/images/advent/battle-vignette.png)
 
@@ -200,3 +205,7 @@ namespace States
     }
 }
 ```
+
+One somewhat confusing result of this system is that primary/secondary actions are captured by the `State` when there isn't something that captures it first. UI buttons can nab the onClick before the State does. This seems okay because if a button is present - the button should decide if it's clickable and what happens when it is clicked, but still seems like a bit of a loophole from the view of the `State` object.
+
+Regardless, It's a nice little methodology that strikes a good balance between maintainability and overwrought abstraction. My next article will talk about the `VisualNovelEngine` and its corresponding `States` - a much more complicated example! Stay tuned!

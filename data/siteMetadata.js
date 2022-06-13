@@ -1,15 +1,16 @@
 const siteMetadata = {
-  title: 'Lucas Does Stuff',
+  title: 'Lucas Makes Games',
   author: 'Lucas Gray',
-  headerTitle: 'Lucas Does Stuff',
-  description: 'A personal journal about my side projects, sometimes work projects too!',
+  headerTitle: 'Lucas Makes Games',
+  description:
+    'A journal about my forays into game development. Occasionally punctuated by work projects',
   language: 'en-us',
-  theme: 'system', // system, dark or light
-  siteUrl: 'https://tailwind-nextjs-starter-blog.vercel.app',
-  siteRepo: 'https://github.com/timlrx/tailwind-nextjs-starter-blog',
+  theme: 'light', // system, dark or light
+  siteUrl: 'https://lucasegray.com',
+  siteRepo: 'https://github.com/lucasgray/lucasblog',
   siteLogo: '/static/images/lucasgray.png',
   image: '/static/images/lucagray.png',
-  socialBanner: '/static/images/twitter-card.png',
+  socialBanner: '/static/images/lucagray.png',
   github: 'https://github.com/lucasgray',
   linkedin: 'https://www.linkedin.com/in/lucas-gray-6169403/',
   email: 'lucas.e.gray@gmail.com',
@@ -21,7 +22,7 @@ const siteMetadata = {
     plausibleDataDomain: '', // e.g. tailwind-nextjs-starter-blog.vercel.app
     simpleAnalytics: false, // true or false
     umamiWebsiteId: '', // e.g. 123e4567-e89b-12d3-a456-426614174000
-    googleAnalyticsId: '', // e.g. UA-000000-2 or G-XXXXXXX
+    googleAnalyticsId: 'G-96SYSZ6TC6', // e.g. UA-000000-2 or G-XXXXXXX
   },
 }
 

@@ -21,12 +21,12 @@ const LayoutWrapper = ({ children }: Props) => {
             <Link href="/" aria-label={siteMetadata.headerTitle}>
               <div className="flex items-center justify-between">
                 <div className="mr-3">
-                  <Image
+                  <img
                     src="/static/images/lucasgray.png"
+                    width={128}
+                    height={128}
                     alt={'Lucas pixel art'}
-                    width={96}
-                    height={96}
-                    className="h-64 w-64 rounded-full"
+                    className="h-128 w-128 rounded-full"
                   />
                 </div>
                 {typeof siteMetadata.headerTitle === 'string' ? (
