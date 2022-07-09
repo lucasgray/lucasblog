@@ -1,0 +1,71 @@
+---
+title: Synchronize Animations in Unity
+date: '2022-07-09'
+draft: false
+summary: Use a synchronizing Animation GameObject to keep all your dependent Sprites in line
+tags: ['Advent of the Reaper', 'Unity', 'pixel', 'C sharp']
+layout: PostSimple
+---
+
+Ever wonder how to keep multiple animations synchronized in Unity? I had the same problem!
+
+Advent is a Pixel Tactical RPG, which means it's very important to us that the game map evokes the classic feel of old Game Boy Advance Fire Emblem games. There was something magical about playing a strategy game on a handheld for the first time, nothing quite as sophisticated as Starcraft but the characters were entertaining and the pixel art storyline was top notch.
+
+I had implemented a rudimentary map combat system, and animated my character sprites. However, the character idle animations started out 100% synchronized, but over time, they'd slowly drift apart, every character marching to their own drum. Especially as a big fan of rhythm games, this insubordination cannot stand!
+
+The problem is that the characters walk to new positions, then we re-play their idle animations afterwards. The characters walk at a different and variable cadence depending on the length of their journey (and, sometimes I do vary the speed). With some details left out, the move code looks like this:
+
+```csharp
+foreach (var board in boardCellPath.Skip(1))
+{
+    string moveAnimation;
+    (lastDirection, moveAnimation) = MoveAnimation(board, lastCell);
+
+    // this plays the walking animation
+    animator.Play(moveAnimation);
+
+    // here we move the board piece to their next cell in their journey
+    var (worldX, worldY) = board.ToWorld();
+    GameObject.transform.DOMove(new Vector3(worldX, worldY, 0), speed).SetEase(Ease.Linear).Play();
+
+    yield return new WaitForSeconds(speed);
+}
+
+// now we reset the idle animation (with a slight detail whether they face left or right)
+animator.Play(lastDirection == Direction.West ? "IdleLeft" : "IdleRight");
+```
+
+This resulted in the cacophony I mentioned earlier, with every character clearly disrespecting the rules of the TRPG. What absolute insolence.
+
+<video controls>
+    <source src="/static/videos/advent/boppin.mov"/>
+</video>
+
+Fortunately, the fix for this is relatively easy!
+
+`animator.Play()` takes a few optional parameters. The last optional parameter, `normalizedTime`, gives you the ability to specify the time offset. This is a float number between 0 and 1. Meaning, essentially, that this is supposed to be the % of the way through the animation when you ask the animator to `Play()`!
+
+Perfect. Now we just need a metronome. The steps boil down to -
+
+1. Make sure all your idle animations are the same length and transition at the same time
+2. Create one "synchronizing" Animation GameObject, the metronome, and pass its `normalizedTime` into your `Play()` idle animation calls.
+
+![animator metronome](/static/images/advent/animator.png)
+
+Here is my metronome, with one of the animations (Idle is the first to run automatically in the state machine). It just slowly ticks through the animation steps, no Sprite component is attached to display. As mentioned earlier, it's important that all idle animations are the same length - all of mine are on one second loops. Also note that it is easy to forget the "Always Animate" flag.
+
+We're nearly there! All that's left is to make sure __every time__ we play the idle animation, we pass in the metronome % progress. Make sure you grab the `normalizedTime` from the object right before you need it - I struggled for a minute because I was passing the __value__ of the `normalizedTime` then waiting around for coroutines, which lead to stale values of `normalizedTime` - the fix is to pass around the __reference__ so that the `normalizedTime` can be plucked out after coroutines run.
+
+```csharp
+var metronome = GameObject.Find("Metronome").GetComponent<Animator>(); // or even better, make this a field in your MonoBehavior
+animator.Play(lastDirection == Direction.West ? "IdleLeft" : "IdleRight", -1, metronome.GetCurrentAnimatorStateInfo(0).normalizedTime);
+```
+
+<video controls>
+    <source src="/static/videos/advent/synchronized.mov"/>
+</video>
+
+Better than any marching band!
+
+Credit to [this unity forum thread](https://forum.unity.com/threads/sync-animations-on-multiple-objects.430114/) specifically __bennichols23__ for providing the solution.
+
