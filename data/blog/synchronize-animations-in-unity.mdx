@@ -13,6 +13,10 @@ Advent is a Pixel Tactical RPG, which means it's very important to us that the g
 
 I had implemented a rudimentary map combat system, and animated my character sprites. However, the character idle animations started out 100% synchronized, but over time, they'd slowly drift apart, every character marching to their own drum. Especially as a big fan of rhythm games, this insubordination cannot stand!
 
+For reference, watch this video of __Fire Emblem: The Sacred Stones__ and notice how the animations "tick" in lock-step with each other -
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Kfv_r9bPA-M?start=1605" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 The problem is that the characters walk to new positions, then we re-play their idle animations afterwards. The characters walk at a different and variable cadence depending on the length of their journey (and, sometimes I do vary the speed). With some details left out, the move code looks like this:
 
 ```csharp
@@ -35,7 +39,7 @@ foreach (var board in boardCellPath.Skip(1))
 animator.Play(lastDirection == Direction.West ? "IdleLeft" : "IdleRight");
 ```
 
-This resulted in the cacophony I mentioned earlier, with every character clearly disrespecting the rules of the TRPG. What absolute insolence.
+This resulted in the cacophony I mentioned earlier, with every character clearly disrespecting the rules of the TRPG. What absolute insolence. Although, it looks like they're having fun. Who can really blame them.
 
 <video controls>
     <source src="/static/videos/advent/boppin.mov"/>

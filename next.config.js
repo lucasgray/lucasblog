@@ -11,7 +11,7 @@ const ContentSecurityPolicy = `
   media-src *;
   connect-src *;
   font-src 'self';
-  frame-src www.googletagmanager.com
+  frame-src www.googletagmanager.com www.youtube.com
 `
 
 const securityHeaders = [
