@@ -1,0 +1,52 @@
+---
+title: Building a Dialogue System in Unity - Introduction
+date: '2022-07-10'
+tags: ['Advent of the Reaper', 'Unity', 'pixel', 'C sharp']
+draft: false
+summary: It's a bit daunting but not too bad! In this introduction we will list requirements and put some bones around the technical solution
+images: ['/static/images/advent/vn-preview.png']
+layout: PostSimple
+---
+
+Action and strategy is all well and good, but how do you advance the story?! The tactical RPG I've been working on, Advent of the Reaper, needs to have a rich set of characters and storyline. There is quite a lot planned, but I don't want to spoil too much at this point! Suffice to say, it is important for our game to set up a solid technical foundation for the dialog elements so that we don't end up boxed in a corner later, or fall through the floorboards of hacky nonsense.
+
+![dialogue example](/static/images/advent/dialog-with-sigh-bouncing.png)
+
+## Requirements
+<hr/>
+
+### Display two characters talking to each other
+
+At it's simplest, our dialog system is a back and forth between two characters. Which characters may come and go. We need to slightly highlight the character that is active and slightly de-emphasize the passive character.
+
+### Allow the user the ability to skip/advance to the next dialog snippet
+
+Once the user is done reading, we need to advance the dialog to the next snippet, maybe changing characters.
+
+### Determine __when__ to display a dialog cutscene
+
+We need a system that keeps an eye on the game state and knows that something needs to happen. Once that system determines that it is time to show dialog, it needs to pause the rest of the action and cut in line to show the dialog. When the player is done reading, the trigger system needs to re-start the process that was originally preempted.
+
+### Allow authoring in some sort of editor
+
+The dialog shouldn't live in code, for two main reasons. It'd be a huge pain in the butt to maintain, and of course we'll want the scriptwriters to be able to author and futz with the dialogs from outside the codebase.
+
+### Intermingle dialog with other actions
+
+Not all dialog scenes will be as simple as talky-talky-done. One common action will be to "puppet" the characters around, have them attack and potentially show battle sequences, move the camera around, apply shaders, show tutorials... the list goes on. Some of these will be very common, some will be completely one-off.
+
+<hr/>
+## Off we go!
+
+I've actually [written a workflow system driven from text before](https://github.com/lucasgray/gru-docs/tree/master/src/markdown), and this __feels__ very similar. It was used to orchestrate rolling up analytics based on large data sets. We churned over half a billion rows a day!
+
+To summarize, it feels like there are two main systems:
+
+* Trigger system that can handle periodically determining whether to halt everything and interrupt the flow of the game to display dialog. The trigger has two main components:
+  * What the trigger is
+  * What event should be triggered
+* Dialog system that picks up based on the event described above, reads from a file, and proceeds through the steps outlined in the file.
+
+## Next Steps
+
+This seems like a good place to stop for now. We've defined the problem. Next I'll explain how to build the trigger system.
