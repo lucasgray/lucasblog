@@ -1,0 +1,88 @@
+---
+title: Building a Dialogue System in Unity - Triggers
+date: '2022-07-13'
+tags: ['Advent of the Reaper', 'Unity', 'pixel', 'C sharp']
+draft: false
+summary:  Creating a system to interject in game progression to show cutscenes
+layout: PostSimple
+---
+
+First order of business in creating a dialog system is having a methodology to trigger it. For our Tactical RPG, there will often be dialog popping up prior to the fight.
+
+There are some other potential "triggers" too -
+
+* When an enemy is attacked the first time
+* At the start of the [nth] turn (player or enemy)
+* When a character is defeated
+* When a character moves into a certain cell on the game board
+* Others?? Possibly!
+
+It is clear that we need to be relatively dynamic and expressive here. If you read my previous article on game states you know that we've designed a state machine with one major holder of state - `GameState`. As the turns progress, different states are activated - a way of determining which "mode" the game is in at a given time, combined with `GameState` which keeps track of the board pieces, who's turn it is (and how many turns in we are).
+
+Dialog triggers should be glue working inside this overall concept - the task is to keep an eye on `GameState` and once a condition is met, halt the normal progression of events in favor of the dialog snippet.
+
+Here is the code that spins up periodically to check and start up the dialog scene:
+
+```csharp
+public void CheckTriggers(Action preempted)
+{
+    // run through current pending triggers (if not in "triggered" state!)
+    // find any that should fire
+    // found? fire it.
+
+    if (triggered)
+    {
+        return;
+    }
+
+    var matches = levelChapter.DialogScenes
+        .Where(s => s.Trigger(gameState) && s.TriggerState == TriggerState.Pending).ToList();
+
+    if (matches.Count > 0)
+    {
+        var candidate = matches.First();
+        triggered = true;
+        liveScene = candidate;
+        Preempted = preempted;
+
+        gameState.stateMachine.visualNovelState.Activate(
+            new VisualNovelProps {DialogScene = candidate}
+        );
+    }
+    else
+    {
+        preempted();
+    }
+}
+```
+
+The key here is the `Action` parameter. This is a handle to the next method that should kick off the next step in the overall game loop. Passing it in as a method means we can hold on to it - either run immediately if no triggers are fired, or starting up the visual novel state and holding on to it to run after the visual novel state is over.
+
+I waffled on whether to run the checking in an update loop or during the few scenarios we know that could trigger a dialog event. I was leery of the performance hit of running it in `Update()` so I decided on the latter. Here is an example invocation:
+
+```csharp
+void StartTurn()
+{
+    visualNovelEngine.CheckTriggers(() =>
+        stateMachine.flourishState.Activate(new PlayerFlourishProps {Player = CurrentTurn.p})
+    );
+}
+```
+
+Finally - here's an example trigger. This methodology will have to grow a tad once we have multiple levels, but this strategy should generally work.
+
+```csharp
+public override DialogScene[] DialogScenes => new DialogScene[]
+{
+    new()
+    {
+        YamlFilename = "R0/intro.yml",
+        Trigger = gameState => gameState.CurrentTurn.p == Player.Human && gameState.CurrentTurn.turn == 0
+    }
+};
+```
+
+The trigger can look at the `GameState` and make decisions based on the state of that object. The only other piece is a pointer to the `.yml` file that contains the "Playbook" containing the instructions for the dialog scene. That'll be one of the upcoming articles!
+
+
+Now that this is in place, we have a flexible way of interjecting into the game loop and presenting adhoc dialog scenes driven from `yml` files.
