@@ -1,0 +1,307 @@
+---
+title: Building a Dialogue System in Unity - Playbooks
+date: '2022-07-23'
+tags: ['Advent of the Reaper', 'Unity', 'pixel', 'C sharp']
+draft: false
+summary:  Laying out the cutscene in a flexible format
+images: ['/static/images/advent/vn-preview.png']
+layout: PostSimple
+---
+
+In order to author and display the cutscene, we need a way to lay out the cutscene events and dialogue text.
+
+I briefly considered...
+
+* Using GameObjects and the Unity properties sidebar, but text files are a much better fit.
+* [Ink](https://www.inklestudios.com/ink/), but it seemed a little too heavyweight for my use case. Looks like a great project, though.
+
+YAML/`yml` is a nice clean and simple structured text language for humans to read and write. Here is an example of the `yml` file format that contains the opening cutscene -
+
+```yml
+- type: customScript
+  synchronous: false
+  scriptName: SetShadowey
+- type: dialogSnippet
+  leftCharacterName: Bandit
+  rightCharacterName: Bandit Leader
+  active: left
+  dialog: <#31D2DB><wave>sigh...</wave></color> I thought that stealing from podunk villagers was supposed to be easier than mugging drunks back in the capitol. That granny nearly took my ear off!
+- type: dialogSnippet
+  leftCharacterName: Bandit
+  rightCharacterName: Bandit Leader
+  active: right
+  dialog: Quit yer gripin', you're gonna spill the beans! I let you keep that locket of hers for your cut didn't I? So I don't want to hear it. It's your own fault for not checking the family for weapons.
+- type: dialogSnippet
+  leftCharacterName: Bandit
+  rightCharacterName: Bandit Leader
+  active: left
+  dialog: How was I to know that withered old hag was carrying a cleaver under her cloak? What was she even going to use that for, riding in the back of a damn wagon?
+- type: customScript
+  synchronous: false
+  scriptName: AppearElira
+- type: puppeteering
+  characterMovements:
+    Elira:
+      to: [-8, 0]
+  synchronous: true
+```
+
+Primarily, the yml lays out the sequence of steps. Not every step is rendering dialog, though. There are several other kinds of steps, and finally, a `customScript` step that allows the author to do anything. Every step needs different properties. For example, dialog needs to know which characters are talking and what they're saying, although a step that moves a character needs to know where to move them.
+
+These are the main step "types" that I've implemented so far:
+
+## Dialog Snippet
+
+```yml
+- type: dialogSnippet
+  leftCharacterName: Bandit
+  rightCharacterName: Bandit Leader
+  active: left
+  dialog: Blah blah blah
+```
+
+<video controls>
+    <source src="/static/videos/advent/dialog.mov"/>
+</video>
+
+This is a piece of dialog. When the cutscene engine sees a `dialogSnippet` - it loads in the entire run of `dialogSnippet` steps and tells the visual novel engine to kickstart with the series of snippets. The visual novel engine is smart enough to appear and disappear character portraits depending on whether they need to swap out, and potentially break dialog snippets into several sub-snippets if the snippet is too long. Ideally, this shouldn't happen too much, but it gives us flexibility.
+
+#### Typewriter setup
+
+Typewriter is the name for the common effect of scrolling dialog text as it appears on the screen, letter by letter. Initially, I built this myself with some tips from a Unity forum post. Much later, I was looking for a way to animate snippets of text to make certain elements of dialog more fun and found [Text Animator for Unity](https://assetstore.unity.com/packages/tools/gui/text-animator-for-unity-158707) which had its own implementation of a typewriter effect that works really well. I swapped mine out for theirs after fooling around with TextMeshPro + my Pixel Art camera for quite a long time.
+
+#### Animation and Effects
+
+Using [Text Animator for Unity](https://assetstore.unity.com/packages/tools/gui/text-animator-for-unity-158707), I can add markup inside the yml that a script on the component that houses the TextMeshPro sees and knows how to animate. I can change colors and make the text wiggle, all that fun stuff. Importantly, it works with the typewriter too - no messiness with the animations as the animating snippet types out across the screen.
+
+Character portraits map to characters on the screen so that we can highlight the speaking character. There are several potential portraits (shadowey, emotional states, different portrait animations) that could map to any single board piece, so we have to keep a mapping of those.
+
+## Puppeteering
+
+```yml
+- type: puppeteering
+  characterMovements:
+    Bandit:
+      to: [-3, 0]
+    Bandit (2):
+      to: [2, -2]
+    Bandit (3):
+      to: [0, 0]
+  synchronous: true
+  synchUntilInMillis: 1000
+```
+
+<video controls>
+    <source src="/static/videos/advent/puppeteering.mov"/>
+</video>
+
+This step moves characters in the scene. Easy enough. It takes one or many character names and an ending [x, y] in game map space, then moves the character there. There is an optional speed component, and can be run synchronously or async. More on that part later.
+
+## Move Camera
+
+```yml
+- type: camera
+  scrollIntoView: Elira
+  synchronous: false
+```
+
+Not implemented yet, but for larger scrollable maps we'll need to move the camera around. Probably by default I'll want to attempt to move the camera so the speaking user is in frame with a small amount of buffer.
+
+## Custom Script
+
+```yml
+- type: customScript
+  synchronous: true
+  scriptName: DoYumeruAttack
+```
+
+Custom lets us do anything we want. Just define a method name and that method can go wild. This is important for one off scripts that aren't repeatable enough to make into a real first-class step.
+
+## Sync vs Async vs Sync Until
+
+All steps are by default considered synchronous - subsequent steps will wait until the immediate step is finished. However, sometimes we would like to play with this concept - either allowing multiple steps to happen at once, or for steps to invoke and unspool for a certain amount of time, then start the next step before the current is completely finished.
+
+* `synchronous: true` - the step is completely synchronous
+* `synchronous: false` - the step will invoke then flow control will immediately pass to the next step
+* `synchUntilInMs: 1000` - the step will start, wait around for 1s, then start the next step
+
+<hr/>
+# Show me some code!
+
+Sure! Here is the important part of deserializing the yml using [YamlDotNet](https://github.com/aaubry/YamlDotNet):
+
+```csharp
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
+
+...
+
+public static List<BaseVisualNovelAction> DeserFromFile(string file)
+{
+    var deserializer = new DeserializerBuilder()
+        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .Build();
+
+    string path = "Assets/VisualNovel/" + file;
+
+    using (StreamReader reader = new StreamReader(path))
+    {
+        var s = reader.ReadToEnd();
+        return deserializer.Deserialize<List<BaseVisualNovelAction>>(s);
+    }
+}
+```
+
+I wanted polymorphic steps, which works... okay, but they're really quite different from each other, so it's a not a great abstraction. `BaseVisualNovelAction` is a deserialization container that reads any possible field, then there's another step hidden under the covers that converts into a nice and clean class with only the fields necessary for that step type.
+
+```csharp
+
+    public class DialogSnippet : PlaybookAction
+    {
+        public string Dialog { get; set; }
+        [CanBeNull] public string LeftCharacterName { get; set; }
+        [CanBeNull] public string RightCharacterName { get; set; }
+        public Side Active { get; set; }
+        public bool Synchronous => true;
+    }
+
+    public class Puppeteering : PlaybookAction
+    {
+        public Dictionary<String, CharacterMovement> CharacterMovements { get; set; }
+        public bool Synchronous { get; set; }
+        public int SynchUntilInMillis { get; set; }
+    }
+
+    public class CharacterMovement : PlaybookAction
+    {
+        public Cell To { get; set; }
+        public int Speed { get; set; }
+        public bool Synchronous { get; set; }
+    }
+
+    public class CameraMove : PlaybookAction
+    {
+        public bool Synchronous { get; set; }
+        public Cell To { get; set; }
+    }
+
+    public class CustomScript : PlaybookAction
+    {
+        public bool Synchronous { get; set; }
+        public string ScriptName { get; set; }
+    }
+```
+
+Now for the fun stuff! If you read the previous article, you know that I have a state machine that can invoke and tear down state transitions. Once the trigger system determines the visual novel must kick in, it runs `activate` like so -
+
+```csharp
+public override void Activate(VisualNovelProps t)
+{
+    Debug.Log("activating visual novel state");
+
+    base.Activate(t);
+
+    allPlaybookActions = new Queue<PlaybookAction>(
+        PlaybookDeserializer.GetPlaybookFor(t.DialogScene.YamlFilename));
+
+    StartCoroutine(Begin());
+}
+```
+
+The `VisualNovelProps` here contain one field - an instance of this `DialogScene` class
+
+```csharp
+[Serializable]
+public class DialogScene
+{
+    public string YamlFilename { get; set; }
+    public Func<GameState, bool> Trigger { get; set; }
+    public TriggerState TriggerState { get; set; } = TriggerState.Pending;
+}
+```
+
+So essentially Activate parses and throws the steps into a `Queue` and kicks off the coroutine that drives the rest.
+
+The coroutine looks like this -
+
+```csharp
+public IEnumerator Begin()
+{
+    yield return StartFlourish();
+
+    yield return RunPlaybookActions();
+
+    yield return EndFlourish();
+
+    // TODO wrong place.. ?
+    visualNovelEngine.OnFinishPlaybook();
+}
+```
+
+Still kind of figuring out what should call what, but this works nicely. `RunPlaybookActions` is...
+
+```csharp
+public IEnumerator RunPlaybookActions()
+{
+    while (allPlaybookActions.Count > 0)
+    {
+        var currentAction = allPlaybookActions.Dequeue();
+
+        // set up props and activate the underlying next sub-state
+        var nextState = StageAndActivateNextState(currentAction);
+
+        // if the action is synchronous, deactivate is called.
+        // if the action is async, we don't call deactivate on it.
+        // so far, this is okay, but later we may need to be more clever
+        if (currentAction.Synchronous)
+        {
+            Debug.Log("waiting for synchronous action");
+            yield return new WaitUntil(() => nextState.IsDone);
+            nextState.Deactivate();
+        }
+    }
+}
+```
+
+Notice `nextState` - guess what! The `VisualNovelState` has even more sub-states! These sub-states keep things nice and organized, and since we have to handle input differently depending on the state (dialog can handle input, pupetteering shouldn't, and it would be ungainly to have a "type" flag inside here to drive that sort of thing) - we break the dialog steps into states too.
+
+The important part to consider here is `yield return new WaitUntil(() => nextState.IsDone)`. The `VisualNovelState` depends on the sub-states to signal to it when they've done what they need to do. This allows every sub-state to handle that based on the sub-state's needs - puppeteering is easy, just tell the characters to walk, when that's done, `IsDone` will evaluate to true. Dialog is much more complicated, so it turns on `IsDone` at the end of the teardown sequence.
+
+I think this strikes a nice balance between overly abstract and too scriptey. It serves my needs well for now and hopefully will grow nicely in the future when more substates are needed.
+
+## Custom Scripts
+
+Custom scripts get invoked with no arguments. They typically find what they need via the Unity methods for searching for game objects, then they go off and do whatever is necessary. Here's an example - asking this character to defeat an enemy.
+
+```csharp
+public IEnumerator DoYumeruAttack()
+{
+    var stateMachine = FindObjectOfType<StateMachine>();
+    var gameState = FindObjectOfType<GameState>();
+
+    var yumeruBoardPiece = gameState.BoardPieces.First(bp => bp.Character.Name == "Yumeru");
+    var enemyToKill = gameState.BoardPieces.First(bp => bp.Cell.boardX == 8 && bp.Cell.boardY == 1);
+
+    yield return StartCoroutine(stateMachine.attackState.DisplayAttackVignette(
+        yumeruBoardPiece,
+        enemyToKill
+    ));
+
+    gameState.KillBoardPiece(enemyToKill);
+
+    IsDone = true;
+    yield return null;
+}
+```
+
+<video controls>
+    <source src="/static/videos/advent/yumeruattack.mov"/>
+</video>
+
+As you can tell, it's pretty scriptey, with some hardcoded elements (also, we're not done with the battle vignette!). However, it's not a big concern - this is a one-off script and those elements shouldn't change.
+
+## Conclusion
+
+Between the `yml` files and the state machine abstraction, I have a nice and solid way to handle dialog. It should be able to grow and adapt well to future requirements without a whole lot of rework, and tech debt remains fairly low, although there are a few messy pieces that may need refactored over time. I'm happy with my approach and think this should serve me well going forward.
+
+Onward!
