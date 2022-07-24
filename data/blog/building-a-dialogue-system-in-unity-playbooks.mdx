@@ -8,16 +8,16 @@ images: ['/static/images/advent/vn-preview.png']
 layout: PostSimple
 ---
 
-In order to author and display the cutscene, we need a way to lay out the cutscene events and dialogue text.
+In order to author and display the cutscene, we need a way to lay out the cutscene events and dialogue text. After a brief trip over to thesaurus.com I settled on calling this a __Playbook__ - the idea of laying out what happens during a cutscene. Orchestrating not only the active character dialog, but anything else that could happen as well.
 
 I briefly considered...
 
 * Using GameObjects and the Unity properties sidebar, but text files are a much better fit.
 * [Ink](https://www.inklestudios.com/ink/), but it seemed a little too heavyweight for my use case. Looks like a great project, though.
 
-YAML/`yml` is a nice clean and simple structured text language for humans to read and write. Here is an example of the `yml` file format that contains the opening cutscene -
+`YAML` is a nice clean and simple structured text language for humans to read and write. Here is an example of the yaml file format that contains the opening cutscene -
 
-```yml
+```yaml
 - type: customScript
   synchronous: false
   scriptName: SetShadowey
@@ -46,13 +46,13 @@ YAML/`yml` is a nice clean and simple structured text language for humans to rea
   synchronous: true
 ```
 
-Primarily, the yml lays out the sequence of steps. Not every step is rendering dialog, though. There are several other kinds of steps, and finally, a `customScript` step that allows the author to do anything. Every step needs different properties. For example, dialog needs to know which characters are talking and what they're saying, although a step that moves a character needs to know where to move them.
+Primarily, the yaml lays out the sequence of steps. Not every step is rendering dialog, though. There are several other kinds of steps, and finally, a `customScript` step that allows the author to do anything. Every step needs different properties. For example, dialog needs to know which characters are talking and what they're saying, although a step that moves a character needs to know where to move them.
 
 These are the main step "types" that I've implemented so far:
 
 ## Dialog Snippet
 
-```yml
+```yaml
 - type: dialogSnippet
   leftCharacterName: Bandit
   rightCharacterName: Bandit Leader
@@ -72,13 +72,13 @@ Typewriter is the name for the common effect of scrolling dialog text as it appe
 
 #### Animation and Effects
 
-Using [Text Animator for Unity](https://assetstore.unity.com/packages/tools/gui/text-animator-for-unity-158707), I can add markup inside the yml that a script on the component that houses the TextMeshPro sees and knows how to animate. I can change colors and make the text wiggle, all that fun stuff. Importantly, it works with the typewriter too - no messiness with the animations as the animating snippet types out across the screen.
+Using [Text Animator for Unity](https://assetstore.unity.com/packages/tools/gui/text-animator-for-unity-158707), I can add markup inside the yaml that a script on the component that houses the TextMeshPro sees and knows how to animate. I can change colors and make the text wiggle, all that fun stuff. Importantly, it works with the typewriter too - no messiness with the animations as the animating snippet types out across the screen.
 
 Character portraits map to characters on the screen so that we can highlight the speaking character. There are several potential portraits (shadowey, emotional states, different portrait animations) that could map to any single board piece, so we have to keep a mapping of those.
 
 ## Puppeteering
 
-```yml
+```yaml
 - type: puppeteering
   characterMovements:
     Bandit:
@@ -99,7 +99,7 @@ This step moves characters in the scene. Easy enough. It takes one or many chara
 
 ## Move Camera
 
-```yml
+```yaml
 - type: camera
   scrollIntoView: Elira
   synchronous: false
@@ -109,7 +109,7 @@ Not implemented yet, but for larger scrollable maps we'll need to move the camer
 
 ## Custom Script
 
-```yml
+```yaml
 - type: customScript
   synchronous: true
   scriptName: DoYumeruAttack
@@ -128,7 +128,7 @@ All steps are by default considered synchronous - subsequent steps will wait unt
 <hr/>
 # Show me some code!
 
-Sure! Here is the important part of deserializing the yml using [YamlDotNet](https://github.com/aaubry/YamlDotNet):
+Sure! Here is the important part of deserializing the yaml using [YamlDotNet](https://github.com/aaubry/YamlDotNet):
 
 ```csharp
 using YamlDotNet.Serialization;
@@ -250,14 +250,24 @@ public IEnumerator RunPlaybookActions()
         // set up props and activate the underlying next sub-state
         var nextState = StageAndActivateNextState(currentAction);
 
-        // if the action is synchronous, deactivate is called.
-        // if the action is async, we don't call deactivate on it.
-        // so far, this is okay, but later we may need to be more clever
-        if (currentAction.Synchronous)
+        if (currentAction.SynchUntilInMillis > 0)
+        {
+            Debug.Log("waiting for synch until action");
+            yield return new WaitForSeconds(currentAction.SynchUntilInMillis / 1000f);
+        }
+        else if (currentAction.Synchronous)
         {
             Debug.Log("waiting for synchronous action");
             yield return new WaitUntil(() => nextState.IsDone);
+
+            // if the action is synchronous, deactivate is called.
+            // if the action is asynch, we don't call deactivate on it.
+            // so far, this is okay, but later we may need to be more clever
             nextState.Deactivate();
+        }
+        else
+        {
+            // async, we dont wait!
         }
     }
 }
@@ -294,14 +304,46 @@ public IEnumerator DoYumeruAttack()
 }
 ```
 
+As you can tell, it's pretty scriptey, with some hardcoded elements (also, the battle vignette is unfinished!). I'm not too worried about the script's maintainability though, it's just a one-time method and shouldn't have to change.
+
+Combine this custom script with a few of the other steps and we've got a pretty powerful setup.
+
 <video controls>
     <source src="/static/videos/advent/yumeruattack.mov"/>
 </video>
 
-As you can tell, it's pretty scriptey, with some hardcoded elements (also, we're not done with the battle vignette!). However, it's not a big concern - this is a one-off script and those elements shouldn't change.
+```yaml
+- type: puppeteering
+  characterMovements:
+    Yumeru:
+      to: [7, 1]
+      speed: 13
+  synchronous: true
+- type: customScript
+  synchronous: true
+  scriptName: DoYumeruAttack
+- type: puppeteering
+  characterMovements:
+    Yumeru:
+      to: [3, 2]
+      speed: 13
+  synchronous: true
+- type: dialogSnippet
+  leftCharacterName: ??? (Yumeru - Silhouette)
+  rightCharacterName: ??? (Elira - Silhouette)
+  active: left
+  dialog: She won't be much of an assassin if she keeps playing with her targets.
+- type: puppeteering
+  characterMovements:
+    Yumeru:
+      to: [-6, 1]
+      speed: 13
+  synchronous: true
+- type: customScript
+  synchronous: false
+  scriptName: TurnYumeruAround
+```
 
 ## Conclusion
 
-Between the `yml` files and the state machine abstraction, I have a nice and solid way to handle dialog. It should be able to grow and adapt well to future requirements without a whole lot of rework, and tech debt remains fairly low, although there are a few messy pieces that may need refactored over time. I'm happy with my approach and think this should serve me well going forward.
-
-Onward!
+Between the `yaml` files and the state machine abstraction, I have a nice and solid way to handle dialog. It should be able to grow and adapt well to future requirements without rework.  Tech debt remains fairly low - although there are a few slightly messy pieces that may need refactored over time. I'm happy with my approach and think this should serve me well going forward.
