@@ -228,7 +228,7 @@ public class DijkstraSearch
 ```
 
 There's still some low-hanging fruit here in terms of efficiency, but it works pretty well as long as move tiles are
-less than ~20 or so. Over 20 cells you can detect a slight hiccup. I could
+less than ~20 or so. Over 20 cells you can detect a slight hiccup. I should probably put this behind a Coroutine/Task or maybe even give the job system a shot to offload it onto another thread. But all of that seems like overkill right now.
 
 ## A* Implementation
 
