@@ -1,0 +1,392 @@
+---
+title: 2d Tactical RPG Pathfinding in Unity
+summary: How to use Dijkstra's and A* to perform simple weighted pathfinding
+tags: ['Advent of the Reaper', 'Unity', 'C sharp', 'algorithms']
+draft: false
+layout: PostSimple
+date: '2022-11-20'
+---
+
+## 2d Top-Down Pathfinding
+
+In a [previous blog post](/blog/advent-2) I explained a tad about the system I had originally written in order to display move range and perform pathing for characters. It worked to get things off the ground, but I quickly realized I needed some more sophisticated options for my varied use cases.
+
+In general, there are two main use cases for pathfinding in a tactical RPG -
+
+* Show all possible paths available to the character - based on the character's move speed and terrain modifiers __(Dijkstra's)__
+* Determine the shortest possible path from one tile to another __(A*)__
+
+For the first scenario, we spider out towards all cardinal directions from the starting cell - North, South, East, West - putting every cell into a `Queue<Cell>` with an associated movement cost. Then, we continue to the first in the Queue, spidering N/S/E/W the same way, and throwing those cells on the back of the queue with a new movement cost - the movement cost of the previous cell plus the current cell.
+
+One wrinkle - this is a weighted graph! Not all cell traversal costs are the same. Paths are faster, forest tiles are slower (but provide defensive bonuses). If a cell already exists in the solution space that we're putting together, we may want to replace it if we're currently looking at a more efficient path than we've previously discovered.
+
+Eventually, we dead end in scenarios where the cell neighbors movement costs are too high.
+
+## The Setup
+
+First, some definitions.
+
+`TileKeeper` (like a trapper keeper, but for yo tiles) is a `MonoBehavior` script that keeps track of my tiles. It knows stuff about movement blockers, tile move costs, etc.
+
+Here are some of the fun things `TileKeeper` keeps track of for us -
+
+```csharp
+public (int xMax, int xMin, int yMax, int yMin) mapExtrema;
+public HashSet<Cell> movementBlockers { get; private set; }
+public Dictionary<Cell, RichTile> richTiles { get; private set; }
+```
+
+`RichTile` is a tile that has info about such things.
+
+```csharp
+public class RichTile
+{
+    public string Name { get; }
+    public int Def { get; }
+    public int Avd { get; }
+    public double MoveThroughCost { get; }
+
+    public RichTile(string name, int def, int avd, double moveThroughCost)
+    {
+        Name = name;
+        Def = def;
+        Avd = avd;
+        MoveThroughCost = moveThroughCost;
+    }
+}
+```
+
+`Cell` and `MoveCell` are little records that model a single cell. `MoveCell` has an associated weight meant to represent the cost so far for a path.
+
+```csharp
+public class Cell: IEquatable<Cell>
+{
+    /**
+     * Board X position
+     */
+    public int boardX { get; }
+
+    /**
+     * Board Y position
+     */
+    public int boardY { get; }
+
+    public Cell(int boardX, int boardY)
+    {
+        this.boardX = boardX;
+        this.boardY = boardY;
+    }
+
+    ... more stuff ...
+}
+```
+
+```csharp
+public class MoveCell
+{
+    public double Distance { get; set; }
+    public Cell Position { get; set; }
+
+    public bool CanLandOn { get; set; }
+
+    public override string ToString()
+    {
+        return $"[MoveCell] ${Distance} ${Position}";
+    }
+}
+```
+
+## Dijkstra Implementation
+
+Cool, now we can write the algorithm.
+
+```csharp
+public class DijkstraSearch
+{
+    private TileKeeper tileKeeper;
+    private HashSet<Cell> allies;
+    private HashSet<Cell> enemies;
+
+    private Cell start;
+
+    private BoardPiece boardPiece;
+
+    public DijkstraSearch(TileKeeper tileKeeper,
+        List<BoardPiece> enemies, List<BoardPiece> allies, BoardPiece boardPiece)
+    {
+        start = boardPiece.Cell;
+        this.tileKeeper = tileKeeper;
+        this.allies = allies.Except(new[] {boardPiece}).Select(bp => bp.Cell).ToHashSet();
+        this.enemies = enemies.Select(bp => bp.Cell).ToHashSet();
+        this.boardPiece = boardPiece;
+    }
+
+    /**
+     * Find move options, given the associated blockers, allies, enemies, etc
+     */
+    public List<MoveCell> MoveOptions()
+    {
+        var toCheck = new Queue<MoveCell>();
+        var candidateCells = new Dictionary<Cell, MoveCell>();
+
+        // toCheck is a queue to maybe add to a list of "move cells" (cells with distance weights ala dijkstra)
+        // candidateCells are the applicable valid move cells
+        var richTile = tileKeeper.GetRichTile(start);
+        toCheck.Enqueue(new MoveCell
+        {
+            Distance = richTile.MoveThroughCost, Position = start, CanLandOn = true
+        });
+
+        while (toCheck.Count > 0)
+        {
+            var cell = toCheck.Dequeue();
+            if (cell.Distance > boardPiece.character.movement.moveRange) continue;
+
+            var currCandidateCell = candidateCells.GetValueOrDefault(cell.Position);
+
+            // we've already explored this cell?
+            // its move cost will become the min move cost
+            if (currCandidateCell != null)
+            {
+                if (cell.Distance < currCandidateCell.Distance)
+                {
+                    // Debug.Log("We had the cell before, but we just found a more efficient path");
+                    // Debug.Log("Old: " + currCandidateCell);
+                    // Debug.Log("New: " + cell);
+                    currCandidateCell.Distance = cell.Distance;
+                }
+                else
+                {
+                    // Debug.Log("We had the cell before, but it was shorter");
+                }
+            }
+            else
+            {
+                candidateCells.Add(cell.Position, cell);
+            }
+
+            var p = cell.Position;
+            foreach (var c in new[] {p.North(), p.South(), p.East(), p.West()})
+            {
+                MaybeEnqueue(c, cell.Distance, toCheck, candidateCells);
+            }
+        }
+
+        // Debug.Log($"Cells we've found: {candidateCells.Count}");
+
+        // in the case we've got a unit that cant move at all, let's just return the one current cell they're on.
+        if (!candidateCells.Any())
+        {
+            return new List<MoveCell>
+            {
+                new()
+                {
+                    Distance = richTile.MoveThroughCost, Position = start, CanLandOn = true
+                }
+            };
+        }
+
+        return candidateCells.Values.ToList();
+    }
+
+    /**
+     * Idea here is to add to cells to check if it doesn't exist already (if it does exist already
+     * we know it has a shorter distance in the queue). We also must not enqueue if it was already
+     * in candidate cells.
+     */
+    private void MaybeEnqueue(Cell rawCell, double distanceSoFar, Queue<MoveCell> toCheck,
+        Dictionary<Cell, MoveCell> candidateCells)
+    {
+        var bounds = tileKeeper.mapExtrema;
+
+        // out of bounds? bail out
+        if (rawCell.boardX > bounds.xMax || rawCell.boardX < bounds.xMin ||
+            rawCell.boardY > bounds.yMax || rawCell.boardY < bounds.yMin) return;
+
+        // blocker piece? cant move here!
+        if (tileKeeper.movementBlockers.Contains(rawCell)) return;
+
+        // enemy? cant move here!
+        if (enemies.Contains(rawCell)) return;
+
+        var richTile = tileKeeper.GetRichTile(rawCell);
+        var cell = new MoveCell {Distance = distanceSoFar + richTile.MoveThroughCost, Position = rawCell};
+
+        var curr = candidateCells.GetValueOrDefault(cell.Position);
+        var moreEfficientExists = curr != null && curr.Distance <= cell.Distance;
+        if (moreEfficientExists) return;
+
+        var inQueue = candidateCells.GetValueOrDefault(cell.Position);
+        var moreEfficientInQueue = inQueue != null && inQueue.Distance <= cell.Distance;
+        if (moreEfficientInQueue) return;
+
+        cell.CanLandOn = !allies.Contains(cell.Position);
+
+        toCheck.Enqueue(cell);
+    }
+}
+```
+
+There's still some low-hanging fruit here in terms of efficiency, but it works pretty well as long as move tiles are
+less than ~20 or so. Over 20 cells you can detect a slight hiccup. I could
+
+## A* Implementation
+
+On the other hand, sometimes you know exactly where you wanna go. In that case, A* is a similar algorithm but applies a heuristic to determine which cells to unfurl in which order. The heuristic is up to you, but for a 2d top down RPG of course the heuristic can simply be euclidean distance between the two cells. If a cell is closer as the crow flies to the destination, we keep moving that direction first. This drastically cuts down on the amount of cells and paths to spider through in order to find a path from one cell to the other.
+
+Right now I use this for two main use cases - "Puppeteering" steps during Visual Novel cutscenes, and to determine what actions the AI should take (the enemy AI player uses pathing distance to attackable characters as part of its calculations).
+
+I grabbed this off of [a gist](https://gist.github.com/keithcollins/307c3335308fea62db2731265ab44c06/3fb6869e2c7dff4c7ec11d50ae66fb947dd9e0d5) and adapted slightly for my use case and model objects.
+
+```csharp
+public class PriorityQueue<T>
+{
+    private List<KeyValuePair<T, float>> elements = new();
+
+    public int Count => elements.Count;
+
+    public void Enqueue(T item, float priority)
+    {
+        elements.Add(new KeyValuePair<T, float>(item, priority));
+    }
+
+    // Returns the Location that has the lowest priority
+    public T Dequeue()
+    {
+        int bestIndex = 0;
+
+        for (int i = 0; i < elements.Count; i++)
+        {
+            if (elements[i].Value < elements[bestIndex].Value)
+            {
+                bestIndex = i;
+            }
+        }
+
+        T bestItem = elements[bestIndex].Key;
+        elements.RemoveAt(bestIndex);
+        return bestItem;
+    }
+}
+
+public class AStarSearch
+{
+    private Dictionary<Cell, Cell> cameFrom = new();
+    private Dictionary<Cell, double> costSoFar = new();
+    private TileKeeper tileKeeper;
+    private List<BoardPiece> allies;
+
+    private Cell start;
+    private Cell goal;
+
+    static public float Heuristic(Cell a, Cell b)
+    {
+        return Mathf.Abs(a.boardX - b.boardX) + Mathf.Abs(a.boardY - b.boardY);
+    }
+
+    public AStarSearch(Cell start, Cell goal, TileKeeper tileKeeper, HashSet<Cell> blockers,
+        List<BoardPiece> enemies, List<BoardPiece> allies, (int xMax, int xMin, int yMax, int yMin) bounds)
+    {
+        this.start = start;
+        this.goal = goal;
+        this.tileKeeper = tileKeeper;
+        this.allies = allies;
+
+        // frontier is a List of key-value pairs:
+        // Location, (float) priority
+        var frontier = new PriorityQueue<Cell>();
+        // Add the starting location to the frontier with a priority of 0
+        frontier.Enqueue(start, 0);
+
+        cameFrom.Add(start, start);
+        costSoFar.Add(start, tileKeeper.GetRichTile(start).MoveThroughCost);
+
+        while (frontier.Count > 0f)
+        {
+            // Get the Location from the frontier that has the lowest
+            // priority, then remove that Location from the frontier
+            Cell current = frontier.Dequeue();
+
+            // If we're at the goal Location, stop looking.
+            if (current.Equals(goal)) break;
+
+            // Neighbors will return a List of valid tile Locations
+            // that are next to, diagonal to, above or below current
+
+            var n = current.North();
+            var s = current.South();
+            var e = current.East();
+            var w = current.West();
+
+            foreach (var neighbor in new[] {n, s, e, w})
+            {
+                // any of these situations - we cant move into that "tile" - but
+                // if the character is in a "bad" situation (starting off screen, for instance)
+                // just return a really high cost rather than skipping entirely
+                var shouldBlock = (neighbor.boardX > bounds.xMax || neighbor.boardX < bounds.xMin ||
+                                   neighbor.boardY > bounds.yMax || neighbor.boardY < bounds.yMin) ||
+                                  blockers.Contains(neighbor) ||
+                                  enemies.Select(p => p.Cell).Contains(neighbor);
+
+                var richTile = tileKeeper.GetRichTile(neighbor);
+
+                var cost = richTile.MoveThroughCost + (shouldBlock ? 1000 : 0);
+
+                double newCost = costSoFar[current] + cost;
+
+                // If there's no cost assigned to the neighbor yet, or if the new
+                // cost is lower than the assigned one, add newCost for this neighbor
+                if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                {
+                    // If we're replacing the previous cost, remove it
+                    if (costSoFar.ContainsKey(neighbor))
+                    {
+                        costSoFar.Remove(neighbor);
+                        cameFrom.Remove(neighbor);
+                    }
+
+                    costSoFar.Add(neighbor, newCost);
+                    cameFrom.Add(neighbor, current);
+
+                    var euclideanDistance = Heuristic(neighbor, goal);
+
+                    float priority = (float) newCost + euclideanDistance;
+                    frontier.Enqueue(neighbor, priority);
+                }
+            }
+        }
+    }
+
+    // Return a List of Locations representing the found path
+    public List<MoveCell> FindPath()
+    {
+        var allyPositions = allies.Select(a => a.Cell).ToList();
+
+        List<MoveCell> path = new List<MoveCell>();
+        Cell current = goal;
+
+        while (!current.Equals(start))
+        {
+            if (!cameFrom.ContainsKey(current))
+            {
+                return new List<MoveCell>();
+            }
+
+            path.Add(new MoveCell
+                {Position = current, Distance = costSoFar[current], CanLandOn = !allyPositions.Contains(current)});
+            current = cameFrom[current];
+        }
+
+        var richTile = tileKeeper.richTiles.GetValueOrDefault(start);
+        path.Add(new MoveCell
+            {Position = start, Distance = richTile?.MoveThroughCost ?? 1, CanLandOn = !allyPositions.Contains(current)});
+
+        path.Reverse();
+        return path;
+    }
+}
+```
+
+## Summary
+
+These two tools provide a stable foundation for pathfinding in a top-down 2d RPG. Pathfinding is a bit of a solved problem, but since there are so many options to choose from, and every project is a little different, it's important to understand the basics. And nice to have simple, clear, easy to understand generic implementations for both algorithms.
