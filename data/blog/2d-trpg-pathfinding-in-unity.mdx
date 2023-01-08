@@ -18,7 +18,7 @@ In general, there are two main use cases for pathfinding in a tactical RPG -
 
 For the first scenario, we spider out towards all cardinal directions from the starting cell - North, South, East, West - putting every cell into a `Queue<Cell>` with an associated movement cost. Then, we continue to the first in the Queue, spidering N/S/E/W the same way, and throwing those cells on the back of the queue with a new movement cost - the movement cost of the previous cell plus the current cell.
 
-One wrinkle - this is a weighted graph! Not all cell traversal costs are the same. Paths are faster, forest tiles are slower (but provide defensive bonuses). If a cell already exists in the solution space that we're putting together, we may want to replace it if we're currently looking at a more efficient path than we've previously discovered.
+One wrinkle - this is a weighted graph! Not all cell traversal costs are the same. Paved path tiles are faster, forest tiles are slower (but provide defensive bonuses). If a cell already exists in the solution space that we're putting together, we may want to replace it if we're currently looking at a more efficient path than we've previously discovered.
 
 Eventually, we dead end in scenarios where the cell neighbors movement costs are too high.
 
@@ -36,7 +36,7 @@ public HashSet<Cell> movementBlockers { get; private set; }
 public Dictionary<Cell, RichTile> richTiles { get; private set; }
 ```
 
-`RichTile` is a tile that has info about such things.
+`RichTile` is a tile that has info about these things.
 
 ```csharp
 public class RichTile

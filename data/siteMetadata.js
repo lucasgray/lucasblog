@@ -13,6 +13,7 @@ const siteMetadata = {
   socialBanner: '/static/images/lucagray.png',
   github: 'https://github.com/lucasgray',
   linkedin: 'https://www.linkedin.com/in/lucas-gray-6169403/',
+  mastodon: 'https://mastodon.gamedev.place/@lucasgray',
   email: 'lucas.e.gray@gmail.com',
   locale: 'en-US',
   analytics: {
