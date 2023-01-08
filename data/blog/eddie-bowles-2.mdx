@@ -26,6 +26,135 @@ Most importantly, Eddie's music has been made publicly available on Spotify, CD,
 
 <iframe style={{borderRadius: '12px'}} src="https://open.spotify.com/embed/artist/3ce0IXenHMgmFHzRcBSXAK?utm_source=generator" width="100%" height="380" frameBorder="0" allowFullScreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"/>
 
+## Code Odds and Ends
+
+### `RectTransformExtensions`
+
+I found [this gist](https://github.com/rfadeev/unity-forge-extension-methods/blob/master/Source/ExtensionMethods/RectTransform/RectTransformExtensions.AnchorPivotPresets.cs) quite handy for my waypoint UI.
+
+```csharp
+    waypoint.button.GetComponent<RectTransform>().SetAnchor(AnchorPresets.MiddleCenter, 0, -10f, ease: Ease.InOutQuart);
+    waypoint.button.transform.DOScale(1.6f, 1.5f).SetEase(Ease.InOutQuart).Play();
+```
+
+Provides this animation
+
+<video controls >
+    <source src="/static/videos/eddie-bowles/tweening-waypoint.mov"/>
+</video>
+
+### `TourLineSpawner`
+
+Pretty simple LineRenderer given a set of points. This is how I render the tour line. Mapbox provides a nice utility to convert between latlongs and scene world `Vector3`s.
+
+```csharp
+public class TourLineSpawner : MonoBehaviour
+{
+    [Geocode] public List<string> locations;
+    public AbstractMap map;
+    public LineRenderer lineRenderer;
+    public int offsetY;
+
+    private void Update()
+    {
+        lineRenderer.SetPositions(locations.Select(l =>
+            {
+                var geo = map.GeoToWorldPosition(Conversions.StringToLatLon(l), true);
+                return new Vector3(geo.x, geo.y + offsetY, geo.z);
+            }
+        ).ToArray());
+    }
+}
+```
+### Waypoints
+
+The waypoints work about how you'd expect too. They are prefabs that are instantiated when the scene is loaded based on a little list of structs.
+
+```csharp
+[Serializable]
+public struct EddieWaypoint
+{
+    [AssetSelector] public Sprite icon2d;
+    [AssetSelector] public GameObject icon3d;
+    public float icon3dScale;
+    [AssetSelector] public GameObject detailModal;
+    public string name;
+    [Geocode] public string location;
+}
+```
+
+The user's location has a trigger collider. When it enters the bounds of one of the waypoints, that's when we know to highlight the waypoint to learn more about it.
+
+```csharp
+public class PlayerTarget : MonoBehaviour
+{
+    public GameState gameState;
+
+    private void OnTriggerEnter(Collider other)
+    {
+        var el = other.gameObject.GetComponent<EddieLocation>();
+        if (el != null && el.PositionWasSet())
+        {
+            gameState.OnEnterEddieLocation(el);
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        var el = other.gameObject.GetComponent<EddieLocation>();
+        if (el != null && el.PositionWasSet())
+        {
+            gameState.OnLeaveEddieLocation();
+        }
+    }
+}
+```
+GameState is very simple for for this app. We implement those two previous OnEnter/OnLeave functions as well as a function to mark waypoints as visited.
+
+```csharp
+public class GameState : MonoBehaviour
+{
+    public LocationText locationText;
+
+    public HashSet<EddieWaypoint> LocationsFound { get; } = new();
+
+    public ButtonSpawner buttonSpawner;
+
+    public EddieWaypoint[] waypoints;
+    public EddieLocation activeLocation;
+
+    public bool IsZoomFull { get; set; }
+
+    public void OnEnterEddieLocation(EddieLocation el)
+    {
+        if (LocationsFound.Contains(el.eddieWaypoint))
+        {
+            return;
+        }
+
+        activeLocation = el;
+
+        locationText.EnterWaypoint(el.eddieWaypoint);
+        buttonSpawner.EnterWaypoint(el.eddieWaypoint);
+    }
+
+    public void OnLeaveEddieLocation()
+    {
+        if (!activeLocation) return;
+
+        locationText.LeaveWaypoint();
+        buttonSpawner.LeaveWaypoint(activeLocation!.eddieWaypoint);
+        activeLocation = null;
+    }
+
+    public void OnFind(EddieWaypoint eddieLocation)
+    {
+        LocationsFound.Add(eddieLocation);
+        OnLeaveEddieLocation();
+    }
+}
+```
+
 
 ## Walking Tour Ideas
 
@@ -37,3 +166,5 @@ Consider -
 * A celebration of life. For folks coming in from out of town, it would add more meaning to the event if you didn't know the person very well. And something to bond over with the other attendees.
 
 * Tourism. A draw and reason to visit a location. For example, a driving tour around Hawaii's Big Island or a tour around food & drink establishments in Wisconsin's Door County.
+
+Maybe someday in the next life when I have more free time :smile:
