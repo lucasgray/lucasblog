@@ -8,7 +8,7 @@ date: '2023-01-08'
 ---
 
 ## Walking Tour - Fast forward to 2023
-Eddie's walking tour has been in the app stores for about a year now. As of January 2023 we have 62 installed devices!
+Eddie's walking tour has been in the app stores for about a year now. As of January 2023 we have 62 installed devices! See my [previous blog post](/blog/eddie-bowles-1) for some more background on this project.
 
 <div className={"flex flex-col md:flex-row md:space-x-6"}>
     <img src={'/static/images/eddie-bowles/eddie-splash.png'} width={'300'}/>
@@ -30,14 +30,14 @@ Most importantly, Eddie's music has been made publicly available on Spotify, CD,
 
 ### `RectTransformExtensions`
 
-I found [this gist](https://github.com/rfadeev/unity-forge-extension-methods/blob/master/Source/ExtensionMethods/RectTransform/RectTransformExtensions.AnchorPivotPresets.cs) quite handy for my waypoint UI.
+I found [this gist](https://github.com/rfadeev/unity-forge-extension-methods/blob/master/Source/ExtensionMethods/RectTransform/RectTransformExtensions.AnchorPivotPresets.cs) quite handy for my waypoint UI. Using that, we can simply use the following two lines of code...
 
 ```csharp
     waypoint.button.GetComponent<RectTransform>().SetAnchor(AnchorPresets.MiddleCenter, 0, -10f, ease: Ease.InOutQuart);
     waypoint.button.transform.DOScale(1.6f, 1.5f).SetEase(Ease.InOutQuart).Play();
 ```
 
-Provides this animation
+...to provide this animation.
 
 <video controls >
     <source src="/static/videos/eddie-bowles/tweening-waypoint.mov"/>
