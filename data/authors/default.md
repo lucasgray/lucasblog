@@ -13,3 +13,5 @@ I'm a dude that likes building software. By day, I enjoy helping others bring th
 During my free time I build software for fun (notice the trend yet?). I have several projects on the front and back burners that consume much of my time. Currently, I'm primarily invested in a tactical RPG pixel game called Advent of the Reaper, but several other projects come and go.
 
 I'm also a runner, fisher, cyclist, husband, and cat dad.
+
+[Resume](/static/Lucas-Gray-Resume-Dec-2022.pdf)

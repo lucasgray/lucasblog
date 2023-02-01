@@ -1,0 +1,77 @@
+---
+title: An End to End Typescript Stack for 2023
+summary: Reaping the benefits of a full stack language, open standards, and smart targeted use of code generation
+tags: ['typescript', 'startups']
+draft: false
+layout: PostSimple
+date: '2023-01-31'
+---
+
+How would you start a fresh project tomorrow? We don't often get a chance to answer that question. As someone that has joined post-MVP for a few startups in a row, I'm often wondering what I would do if I had truly green fields. What technology? What hosting provider? What new mistakes would I make? :smile:
+
+![notes app](/static/images/typescript/notes.png)
+
+## The project
+
+Before I get in too deep, this is the project that I built: https://github.com/lucasgray/notes-app. It's hosted [here](https://notes-app-web.vercel.app/). I'm pretty happy with the stack in broad strokes. As somebody with ~15 years of software dev and team lead experience, I can say this is a solid foundation that I would be very happy to build on.
+
+The application is just a simple note taking app to prove out end to end connection between a react app and an express server with the following technology:
+
+### Sure Bets
+* Typescript
+* React
+* Express
+* [tsoa](https://tsoa-community.github.io/docs/)
+* [openapi-typescript-codegen](https://github.com/ferdikoomen/openapi-typescript-codegen)
+
+### Probably Solid
+* Turborepo
+* Tailwindcss
+
+## Key takeaways
+
+### Typescript is a godsend
+
+We already knew this but.... the world can't go back to vanilla javascript. Type safety has always been a killer feature.
+
+### Monorepos
+
+I looked at the existing ecosystem and chose turborepo and so far, so good. It's pretty lightweight although the documentation and examples could be more thorough. I bet that will improve over time.
+
+Without a monorepo, code sharing is through a (presumably private) npm package. There are some serious operational costs. You have to make your code changes, version the npm package and publish it, then consume it in the dependent project. Locally, you can run `npm link` which is often flaky.
+
+Turborepo and `pnpm` does away with all of this mess, allowing you to structure your dependencies as subdirectories. Dependent projects reference their dependencies with a fairly simple `"library-project": "workspace:*",` configuration, allowing you to get the most recent reference of the included dependency.
+
+### Express and `tsoa`
+
+I don't know enough about the alternatives to express, but express seems fine, its fast since it handles IO asynchronously out of the box. I'm a little leery of how to troubleshoot it if I do end up with performance issues (I haven't spun up a profiler against it yet, haven't had the need) - but so far so good.
+
+`tsoa` is pretty cool. With `tsoa` you write framework agnostic controllers (classes with methods that actually return `Promise<Reponse>` objects which I definitely prefer, by the way). `tsoa` steps in and autogenerates routes for express or your framework of choice along with an openapi/swagger spec. This means you get swagger docs for free, which is super helpful for the team.
+
+### `openapi-typescript-codegen`
+
+Building on top of `tsoa` - if we have a swagger file, we can generate a client against it! This library autogenerates that client code. It allows you to specify which of [fetch, axios, [...]] xhr libraries to use and then creates a bunch of typescript to give you a nice ergonomic client to hit your api. At Alloy we actually build a client this way to hit our backend provider's apis, including auto OAuth2 access token/refresh token functionality.
+
+This is where the monorepo starts to shine. Using turbo we can create a pipeline that generates the swagger file, then generates the client typescript code. This all happens as part of a "generate" build step that is a dependency that must happen prior to the normal "build" step. Once swagger and the client code is generated, "build" becomes primarily a `tsc` typescript compile step.
+
+### Turborepo
+
+I already covered much of turborepo already. I'll say that I did have some problems getting things set up - my ideal here was beyond the scope of the canned examples, but a friendly dev in their discord channel gave me a hand to get the rest of the way there. I'd be a little wary that going with this fancy monorepo setup uses up the teams "innovation points." But I do see this becoming much more popular over the next few years, so the increase in community involvement will tip the balance in available documentation and ease of use.
+
+### Tailwindcss
+
+This blog was a tailwindcss blog starter kit! Which originally had me intrigued. I am a big fan of the idea - I don't think css classes stand to gain anything by being semantic. In fact, the cleaner front end codebases that I have worked in used nonsemantic css classes. It feels really powerful to work directly in css class names rather than typing the usual flex directives for the billionth time.
+
+I did not spend a whole lot of time with tailwind - not enough to feel conscious competence. I think understand the value - but I'm still in the realm of needing to look up every class, which is cumbersome. I need to sit with it a while and really use it in earnest (especially for responsive layouts!) to get the hang of this one.
+
+### Hosting
+
+I'm a fan of PaaS hosting. Back in the day this was Heroku, lately I've been very impressed with Render. I couldn't get the front end working with Render, but I'm going back and forth with their support to make it work. Something to do with `pnpm`. Vercel worked out of the box no worries, and not too surprising, since they're the ones behind turborepo after all.
+
+### React state management
+
+I'm not too sure here. I like the look of `react-query` - it has a lot of features that I appreciated from ember-data that I felt react and redux lacked. Redux is a lot of legwork, it keeps things nice and principled and clean, but it's onerous to maintain.
+
+## Conclusion
+
+This was a great exercise. I think in hindsight I would definitely fork this repo and start here as a foundation for a fresh new webapp in 2023!
