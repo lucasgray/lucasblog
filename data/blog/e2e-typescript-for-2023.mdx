@@ -42,6 +42,10 @@ Without a monorepo, code sharing is through a (presumably private) npm package. 
 
 Turborepo and `pnpm` does away with all of this mess, allowing you to structure your dependencies as subdirectories. Dependent projects reference their dependencies with a fairly simple `"library-project": "workspace:*",` configuration, allowing you to get the most recent reference of the included dependency.
 
+### React, state management
+
+React... I've always been a fanboy. State management, I'm not too sure here. I like the look of `react-query` - it has a lot of features that I appreciated from ember-data that I felt react and redux lacked. Redux is a lot of legwork, it keeps things nice and principled and clean, but it's onerous to maintain.
+
 ### Express and `tsoa`
 
 I don't know enough about the alternatives to express, but express seems fine, its fast since it handles IO asynchronously out of the box. I'm a little leery of how to troubleshoot it if I do end up with performance issues (I haven't spun up a profiler against it yet, haven't had the need) - but so far so good.
@@ -67,10 +71,6 @@ I did not spend a whole lot of time with tailwind - not enough to feel conscious
 ### Hosting
 
 I'm a fan of PaaS hosting. Back in the day this was Heroku, lately I've been very impressed with Render. I couldn't get the front end working with Render, but I'm going back and forth with their support to make it work. Something to do with `pnpm`. Vercel worked out of the box no worries, and not too surprising, since they're the ones behind turborepo after all.
-
-### React state management
-
-I'm not too sure here. I like the look of `react-query` - it has a lot of features that I appreciated from ember-data that I felt react and redux lacked. Redux is a lot of legwork, it keeps things nice and principled and clean, but it's onerous to maintain.
 
 ## Conclusion
 
