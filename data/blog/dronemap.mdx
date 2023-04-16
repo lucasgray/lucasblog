@@ -1,0 +1,147 @@
+---
+title: Creating a Map Visualization Using React-map-gl and Deck.gl
+summary: How to create a versatile and visually appealing polygon-based 3d map for the web
+tags: ['React', 'Augmented Reality']
+draft: false
+layout: PostSimple
+date: '2023-04-16'
+---
+
+## Background
+
+I'll take any excuse to interact with mapbox - I love their tech, easy to use, intuitive, great results. I recently joined a challenge to create a Point of Interest UI to simulate a mission command for autonomous recon drones.
+
+## The result
+
+Skipping straight to what I built for a moment - I'm pretty happy with how it turned out. There's a panel on the left that gives you all the POIs in a list, and the map with a route and POIs available to classify. The code is here - https://github.com/lucasgray/geofuns and to play with the map in your browser, go here https://geofuns-webapp.onrender.com/?canned=true (but load it, wait ~3m, and try again. It's on a render PaaS free tier and the API has to wake up.)
+
+The usual pan/zoom functions are supported -
+
+<video controls >
+    <source src="/static/videos/dronemap/zoom-pan.mov"/>
+</video>
+
+The drawer is linked to the map such that hovering on the drawer centers the UI, and hovering on the map autoscrolls into view and indicated in the list view which is currently active.
+
+Finally, there is a little modal that allows an end user to classify POIs -
+
+<video controls >
+    <source src="/static/videos/dronemap/poi-classify.mov"/>
+</video>
+
+## Building the UI
+
+`react-map-gl` seemed like the de-facto implementation for the web, but the visualizations were a little lackluster. `deck.gl` provides quite a few really fancy annotations, including 3d and animations. Later I learned custom animations would be a little more difficult than simple css.
+
+My front-end was created with `create-react-app`. Much of the UI work was pretty straightforward React code. I skipped any css or state libraries in the interest of time. There were a few snippets to call out -
+
+This is how to connect `deck.gl` to `react-map-gl` - a bit hard to find but I think this is something that recently changed with a newer version of the libraries. It seems like the strategy around how to keep both libraries synched in terms of `viewState` has been changing a little, but what this does is automatically pass `viewState` down (it's not called out in directly, but it's in there in the spread params) such that whenever that changes via the Map, it'll thread into the overlay and the overlay will get the update as well.
+
+```typescript jsx
+/**
+ * A thing we have to do to connect react-map-gl to deck-gl (for the newer version of map-gl & mapbox)
+ * Detail here: https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#using-with-react-map-gl
+ *
+ * This ensures deck.gl and map-gl are synchronized behind the scenes - both respond to updates in
+ * viewState in unison.
+ *
+ */
+function DeckGLOverlay(
+  props: MapboxOverlayProps & {
+    interleaved?: boolean;
+  }
+) {
+  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
+  overlay.setProps(props);
+  return null;
+}
+```
+
+I used a geojson layer to display three different types of elements - the polys, the lines, and the annotation texts. The upside here was the simplicity, the downside was that this layer ended up needing a kitchen sink of fields for those different types of geo elements.
+
+```typescript jsx
+// the geojson layer handles displaying everything - drone lines, pois, and text
+  const geojson = new GeoJsonLayer({
+    id: 'geojson-layer',
+    data: [...flightpaths, ...poiList, ...namesFromPois(poiList)],
+    pickable: true,
+    stroked: false,
+    filled: true,
+    extruded: true,
+    lineWidthScale: 20,
+    lineWidthMinPixels: 2,
+    getLineWidth: 1,
+    getLineColor: () => [255, 140, 0],
+    getTextColor: [255, 255, 255, 200],
+    getTextSize: 22,
+    getTextPixelOffset: () => [-20, 0],
+    getTextAnchor: 'end',
+    pointType: 'text',
+    getFillColor: (d) => getFillColorFor(d, highlightedPoiId, hoveredPoiId, 215),
+    getElevation: (d) => {
+      if (d.geometry.type !== 'Polygon') return 30;
+      return d.properties!.height;
+    },
+    onHover: (d: any) => {
+      if (d.featureType !== 'polygons') return;
+      setHoveredPoi(d?.object?.properties?.id);
+    },
+    onClick: (d: any) => {
+      if (d.featureType !== 'polygons') return;
+      setHoveredPoi(d?.object?.properties?.id);
+      setHighlightedPoiId(d?.object?.properties?.id);
+      setUpdatingPoi(d?.object);
+    },
+  });
+```
+
+## Building the API
+
+I used my turbo setup from my [notes app project](/blog/e2e-typescript-for-2023), which I'm really becoming quite comfortable with.  The API format exposed GeoJSON - I made the choice to stick to the spec 100% due to simplicity. No misunderstandings around the API payload if you can just look up preexisting detailed man pages. You can play with the API using my autogenerated swagger spec here https://geofuns-backend.onrender.com/docs/ (again if the free tier is sleeping, just give it a minute and try again)
+
+## Turbo config
+
+I'm starting to really grok the turbo dependencies! This was the most elaborate turbo setup so far.
+
+API generate comes first, which makes the swagger.json. Then Client generate can come next, which makes the autogenerated client that the FE can use to talk to the API nicely. Client build needs to happen before the rest of the builds, then generally everything else can happen.
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "generate": {
+      "dependsOn": ["^generate"],
+      "outputs": ["client/**", "public/**", "geodata/**"]
+    },
+    "client#generate": {
+      "dependsOn": ["api#generate"],
+      "outputs": ["client/**"]
+    },
+    "client#build": {
+      "dependsOn": ["generate"],
+      "outputs": ["client/**"]
+    },
+    "build": {
+      "outputs": ["build/**", "dist/**"],
+      "dependsOn": ["generate", "^build"]
+    },
+    "test": {
+      "outputs": ["coverage/**"],
+      "dependsOn": []
+    },
+    "lint": {},
+    "dev": {
+      "dependsOn": ["generate", "api#build", "client#build"],
+      "cache": false,
+      "persistent": true
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}
+```
+
+## Conclusion
+
+If I ever get back to [Runstrike](/blog/runstrike-react-native), this would be a great setup for the web UI!
