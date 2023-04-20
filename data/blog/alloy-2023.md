@@ -11,7 +11,7 @@ It's been quite the year! Happy to report we've survived a few big PR pushes, a 
 
 # Looking Back
 
-We had a lot of work to do last year. A Mongo database that didn't synch with our payment processor or CRM being the primary problem. The launch was breakneck speed and the backend architect before I joined was a random contractor from Upwork who was quite bad (both at code and design).
+We had a lot of work to do last year. A Mongo database that didn't synch with our payment processor or CRM being the primary problem. The launch was breakneck speed and the backend lead developer/architect wasn't very forward thinking.
 
 ### System Level "Don't Repeat Yourself"
 
@@ -23,7 +23,7 @@ We use Stripe for three main things -
 
 Customers that join our service would be written prescriptions that ultimately would be registered on Stripe as Stripe Subscriptions. However, the nature of our treatments require quite a lot of high touch customer engagement - customers often pause, switch, add treatments. 
 
-The Upwork contractor I mentioned built a `Subscription` and `Customer` collection in his Mongo database that reflected Customer and Subscription in Stripe. When the Stripe info was updated by other nontechnical members of the team, the Mongo database didn't always update. So Subscription data would become stale - it was very hard to understand which repository should be considered the source of truth!
+The backend developer I mentioned built a `Subscription` and `Customer` collection in his Mongo database that reflected Customer and Subscription in Stripe. When the Stripe info was updated by other nontechnical members of the team, the Mongo database didn't always update. So Subscription data would become stale - it was very hard to understand which repository should be considered the source of truth!
 
 This was the biggest headache to unravel - and Stripe x Mongo wasn't the only issue along these lines. 
 
@@ -49,7 +49,7 @@ Clearly this DRY violation had to stop. Winners of the "system of record" challe
 
 One bite at a time. It took months to fix this up. I started by introducing a Postgres Database on the platform as a service [Render](https://render.com). Render's [Postgres implementation](https://render.com/docs/databases) is top notch. Nightly backups, read only replicas at a push of a button, and much more.
 
-Customer records and a "product registry" were created on Postgres. The customer table at this point was very skinny, just email and a bunch of pseudo-foreign keys to the disparate systems - Look up a customer and fetch their Stripe info via their Stripe Customer id, Prescription info via their Capable Health id, etc.
+I created & migrated customer records and a "product registry" in Postgres. The customer table at this point was very skinny - email and a bunch of pseudo-foreign keys to the disparate systems. One could look up a customer and fetch their Stripe info via their Stripe Customer id, Prescription info via another id, and so on.
 
 The "product registry" was a similar idea. For any product we offered, keep track of the system keys (fulfillment, prescription, stripe price ids, etc).
 
@@ -65,7 +65,7 @@ We built this out using Render's [`cron` functionality](https://render.com/docs/
 
 # Migrating From Capable Health
 
-Towards the end of January we learned of the worst new possible - Capable Health was shutting down. Being so deeply embedded with them - it would be very challenging to migrate out. But we don't do these things because they're easy :)
+Towards the end of January we learned of the worst possible news - Capable Health was shutting down. Being so deeply embedded with them - it would be very challenging to migrate out. But we don't do these things because they're easy :)
 
 The team made a plan and got to work! 
 
