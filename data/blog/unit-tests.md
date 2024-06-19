@@ -25,7 +25,7 @@ There are many ways to peel an orange! Some creative thinking is required, as di
 * Unique challenges and risks for your product
 * Stack and systems in play
 
-Our current setup involves many more api unit tests than React. While we're working on improving our React coverage, we rely heavily on Playwright automation for end to end UI tests &mdash; outside the scope of this post. We're looking at these api unit tests primarily.
+Our current setup involves many more api unit tests than React. While we are working on improving our React coverage, we rely heavily on Playwright automation for end to end UI tests &mdash; outside the scope of this post. We'll hone in on these api tests.
 
 The api tests primarily consist of... 
 * Mock heavy tests for the service layer
@@ -50,9 +50,9 @@ And the software updates are the fun part anyway, so let's get into it!
 
 ### 1. Dump `jest`, move to `vitest`
 
-Jest has been problematic for a while. The esm/commonjs schism is quite difficult to manage with Jest. While it likely isn't Jest's issue, supporting ESM modules via either an "experimental" flag or `transformIgnorePatterns` is annoying to work with. We recently moved to `vitest` for one of our React projects, so we though why not give this a shot for our Node API?
+Jest has been problematic for a while. The esm/commonjs schism is quite difficult to manage with Jest. While it likely isn't Jest's issue, supporting ESM modules via either an "experimental" flag or `transformIgnorePatterns` is annoying to work with. We recently moved to `vitest` for one of our React projects, so we thought why not give this a shot for our Node API?
 
-The next reason to move to Vitest I'll explore later &mdash; better support for parallel runs.
+The next reason to move to `vitest` I'll explore later &mdash; better support for parallel runs.
 
 ### Speed rating: 1/10 (but this was a necessary foundation)
 
@@ -71,9 +71,9 @@ Forks may be a tad slower but are nice and clean &mdash; separate processes with
 ## High Impact, Heavy Lift
 ***
 
-### 3. Separate database with setup/teardown per fork
+### 3. Separate databases with setup/teardown per fork
 
-Now that we're in a fork pool we need to draw clear boundaries between the concurrently running tests. This is a general principle in horizontal scaling &mdash; once processes are truly independent (or shared dependencies are clearly defined and extracted), scaling becomes an easier problem to solve because you can simply throw more resources at the process. As mentioned earlier, our data layer tests do talk to a real Postgres database, and we'd rather not switch to even Sqlite because a different dialect could hide subtle bugs or require us to skip tests that exercise Postgres-specific features.
+Now that we're in a fork pool we need to draw clear boundaries between the concurrently running tests. This is a general principle in horizontal scaling &mdash; once processes are truly independent (or shared dependencies are clearly defined and extracted), scaling becomes an easier problem to solve because you can simply throw more resources at the problem. As mentioned earlier, our data layer tests do talk to a real Postgres database, and we'd rather not switch to even Sqlite because a different dialect could hide subtle bugs or require us to skip tests that exercise Postgres-specific features.
 
 Our data layer uses `knex`, with seed files that create common database scenarios that all unit tests can benefit from. Therefore, the test setup/teardown process truncates all tables (using `knex-cleaner`) between runs. Seed setup and teardown is only as efficient as these seed files, which I'll investigate in more detail later. 
 
@@ -126,14 +126,20 @@ I implemented a strategy to cache these configuration payloads in a `./.vitest/`
 
 ### 8. Beefy boy hardware
 
-Now that we've made the tests much more efficient by allowing them to run in parallel and trimming down IO (where CPU/memory resources would be sitting idle), we can throw more resources at the problem. I upgraded our Github action docker container to the 16 core machine, which is currently billed at 6 cents per minute. I've yet to run this for a month to see how this affects our Github billing, but conservatively for 7 devs, 3 minutes per CI run, let's say 3 CI runs per day per dev, we're looking at 75 dollars per month. Add some dependabots and fudge for deploys, let's call it $150.  
+Now that we've made the tests much more efficient by allowing them to run in parallel and trimming down IO (where CPU/memory resources would be sitting idle), we can throw more resources at the problem. I upgraded our Github action docker container to the 16 core machine, which is currently billed at 6 cents per minute. 
+
+I've yet to run this for a month to see how this affects our Github billing, but conservatively for 7 devs, 3 minutes per CI run, maybe 3 CI runs per day per dev, we're looking at 75 dollars per month. Add some dependabots and fudge for deploys, let's call it $150. 
+
+Money well spent.
 
 ### Speed rating: 9/10
 <br/>
 
 ### 9. Parallel suite execution
 
-We had previously run our suites (one React app, the api, some common libraries) in serial &mdash; one right after the other. In theory, this would allow a failure of common libraries to fail fast &mdash; you may not need to know whether the api tests succeed if you have a test failure in a shared library. In practice, it's simpler and more efficient to just throw a single step in using `pnpm test`. This way all suites fork to run independently in parallel, all test execution results are still accounted for, and coverage is included in this step and reported on later. This saved a minute or two, because the total runtime of `pnpm test` is now as long as our api test runtime (the longest running suite).
+We had previously run our suites (one React app, the api, some common libraries) in serial &mdash; one right after the other. In theory, this would allow a failure of common libraries to fail fast &mdash; you may not need to know whether the api tests succeed if you have a test failure in a shared library. In practice, it's simpler and more efficient to just throw a single step in using `pnpm test`. This way all suites fork to run independently in parallel, all test execution results are still accounted for, and coverage is included in this step and reported on later. 
+
+This saved a minute or two, because the total runtime of `pnpm test` is now as long as our api test runtime (the longest running suite).
 
 ### Speed rating: 8/10
 <br/>
@@ -144,7 +150,7 @@ We had previously run our suites (one React app, the api, some common libraries)
 As you can see, with a little bit of creative thinking, beefier hardware, and more efficient test execution, it is possible to keep high value tests while reducing overall test suite runtime.
 
 ## Afterword &mdash; a Musing on Testing Strategy
-Finding the optimal testing strategy is quite the balancing act, and even the entirety of the unit test suite is only a small slice of the overall pie. The major considerations are coverage and software quality, but developer experience is just as important. 
+Finding the optimal testing strategy is quite the balancing act, and even the entirety of the unit test suite is only a small slice of the overall testing pie. The major considerations are coverage and software quality, but developer experience is just as important. 
 
 The developer experience for creating and maintaining a rich set of tests must stay as frictionless as possible, while allowing high value tests to be written. Although mocking is nice for business rule service layer code, often it is only as good as the developer expectations for how the mocked code (or third party) works, which is frequently a source of bugs that aren't found until regression or worse. 
 
