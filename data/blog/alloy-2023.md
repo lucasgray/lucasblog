@@ -90,7 +90,7 @@ We migrated 30% of our most active customers using this method without those cus
 
 ### Data Migration
 
-We initially didn't know how much time we had, and whether we'd receive any data dumps. We also couldn't go dark for a single day - revenue is top priority for an early startup and we couldn't miss a beat (we had an exponential PR event while we were migrating, in fact!)
+We initially didn't know how much time we had, and whether we'd receive any data dumps. We also couldn't go dark for a single day - revenue is top priority for an early startup and we couldn't miss a beat (in fact, we had a massive flux of inbound customers due to a great article about is in the New York Times during this transition!)
 
 We created data migrators again using Render's `cron` functionality. Every night, our migrator would wake up and either save off all the data around a particular entity (customer, prescription, etc) or save the most recent values (when the entity is more or less immutable).
 
