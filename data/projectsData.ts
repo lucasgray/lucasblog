@@ -3,7 +3,7 @@ const projectsData = [
     title: 'Advent of the Reaper',
     description: `A pixel Tactics RPG in the vein of the GBA Fire Emblem games, featuring upgraded graphics, strategies, and a great story and soundtrack! Developing as the sole programmer on the team, working with 3 pixel artists, a story writer, an illustrator, and composer.`,
     imgSrc: '/static/images/advent/advent-illustration.jpeg',
-    href: 'https://twitter.com/ReaperAdvent',
+    href: 'https://www.adventofthereaper.com',
   },
   {
     title: 'Eddie Bowles Historical Tour',
